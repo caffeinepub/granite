@@ -152,6 +152,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
     const historyRef = useRef<ImageData[]>([]);
     const historyIndexRef = useRef(-1);
     const pointsBufferRef = useRef<{ x: number; y: number }[]>([]);
+    const strokeSnapshotRef = useRef<ImageData | null>(null);
     const [textInput, setTextInput] = useState<{
       x: number;
       y: number;
@@ -268,7 +269,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
       [canvasWidth, canvasHeight, opacity],
     );
 
-    // Initialize canvas
     useEffect(() => {
       const canvas = mainCanvasRef.current;
       if (!canvas) return;
@@ -276,13 +276,11 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
       if (!ctx) return;
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-      // Reset history on size change
       historyRef.current = [];
       historyIndexRef.current = -1;
       saveHistory();
     }, [canvasWidth, canvasHeight, saveHistory]);
 
-    // Grid overlay
     useEffect(() => {
       const overlay = overlayCanvasRef.current;
       if (!overlay) return;
@@ -397,9 +395,17 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
         }
 
         if (tool === "pencil" || tool === "brush" || tool === "eraser") {
-          ctx.globalAlpha = opacity / 100;
+          // Snapshot canvas state before stroke begins so we can redraw the full stroke each frame
+          strokeSnapshotRef.current = ctx.getImageData(
+            0,
+            0,
+            canvasWidth,
+            canvasHeight,
+          );
           const colorStr = hexToRgba(color, opacity);
+          ctx.globalAlpha = tool === "eraser" ? 1 : opacity / 100;
           drawSmoothLine(ctx, [pos], brushSize, colorStr, tool === "eraser");
+          ctx.globalAlpha = 1;
         }
       },
       [
@@ -407,6 +413,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
         color,
         brushSize,
         opacity,
+        canvasWidth,
+        canvasHeight,
         floodFill,
         saveHistory,
         getCanvasCoords,
@@ -430,18 +438,22 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
 
         if (tool === "pencil" || tool === "brush" || tool === "eraser") {
           pointsBufferRef.current.push(pos);
-          ctx.globalAlpha = tool === "eraser" ? 1 : opacity / 100;
+          const isEraser = tool === "eraser";
+          const lineSize = tool === "brush" ? brushSize * 1.5 : brushSize;
           const colorStr = hexToRgba(color, opacity);
+          // Restore pre-stroke snapshot then draw the entire accumulated stroke
+          // This keeps all previous strokes intact and prevents segment disappearing
+          if (strokeSnapshotRef.current) {
+            ctx.putImageData(strokeSnapshotRef.current, 0, 0);
+          }
+          ctx.globalAlpha = isEraser ? 1 : opacity / 100;
           drawSmoothLine(
             ctx,
             pointsBufferRef.current,
-            tool === "brush" ? brushSize * 1.5 : brushSize,
+            lineSize,
             colorStr,
-            tool === "eraser",
+            isEraser,
           );
-          if (pointsBufferRef.current.length > 3) {
-            pointsBufferRef.current = pointsBufferRef.current.slice(-2);
-          }
           ctx.globalAlpha = 1;
         } else if (
           tool === "rectangle" ||
@@ -512,6 +524,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
 
         ctx.globalAlpha = 1;
         pointsBufferRef.current = [];
+        strokeSnapshotRef.current = null;
         saveHistory();
       },
       [
@@ -531,6 +544,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
       if (isDrawingRef.current) {
         isDrawingRef.current = false;
         pointsBufferRef.current = [];
+        strokeSnapshotRef.current = null;
         const mainCtx = mainCanvasRef.current?.getContext("2d");
         if (mainCtx) mainCtx.globalAlpha = 1;
         saveHistory();
