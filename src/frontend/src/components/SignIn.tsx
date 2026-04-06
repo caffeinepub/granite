@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { createActorWithConfig } from "../config";
 
 interface SignInProps {
   onSignIn: () => void;
@@ -30,7 +29,6 @@ function generateParticles(count: number): Particle[] {
 export default function SignIn({ onSignIn }: SignInProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [particles] = useState<Particle[]>(() => generateParticles(40));
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -38,36 +36,19 @@ export default function SignIn({ onSignIn }: SignInProps) {
     inputRef.current?.focus();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!password.trim()) {
       setError("Please enter a password");
       return;
     }
 
-    const upperPassword = password.toUpperCase();
+    const upperPassword = password.trim().toUpperCase();
 
-    if (upperPassword !== "GRANITE") {
-      setError("Incorrect password. Access denied.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const actor = await createActorWithConfig();
-      const backendCheck = await actor.checkPassword(upperPassword);
-      if (backendCheck) {
-        onSignIn();
-      } else {
-        setError("Incorrect password. Access denied.");
-      }
-    } catch {
-      // If backend fails but local check passes, allow in
+    if (upperPassword === "GRANITE") {
       onSignIn();
-    } finally {
-      setIsLoading(false);
+    } else {
+      setError("Incorrect password. Access denied.");
     }
   };
 
@@ -348,20 +329,17 @@ export default function SignIn({ onSignIn }: SignInProps) {
             <button
               data-ocid="signin.submit_button"
               type="submit"
-              disabled={isLoading}
               style={{
                 width: "100%",
                 height: "48px",
-                background: isLoading
-                  ? "rgba(74,158,255,0.5)"
-                  : "linear-gradient(135deg, #4A9EFF, #2A7ED0)",
+                background: "linear-gradient(135deg, #4A9EFF, #2A7ED0)",
                 color: "#fff",
                 border: "none",
                 borderRadius: "24px",
                 fontSize: "0.9rem",
                 fontWeight: "600",
                 letterSpacing: "0.1em",
-                cursor: isLoading ? "not-allowed" : "pointer",
+                cursor: "pointer",
                 transition: "opacity 0.2s, transform 0.1s",
                 display: "flex",
                 alignItems: "center",
@@ -370,40 +348,13 @@ export default function SignIn({ onSignIn }: SignInProps) {
                 boxShadow: "0 4px 16px rgba(74,158,255,0.3)",
               }}
               onMouseEnter={(e) => {
-                if (!isLoading)
-                  (e.target as HTMLButtonElement).style.opacity = "0.9";
+                (e.target as HTMLButtonElement).style.opacity = "0.9";
               }}
               onMouseLeave={(e) => {
-                if (!isLoading)
-                  (e.target as HTMLButtonElement).style.opacity = "1";
+                (e.target as HTMLButtonElement).style.opacity = "1";
               }}
             >
-              {isLoading ? (
-                <>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    style={{ animation: "spin-slow 1s linear infinite" }}
-                    aria-label="Loading"
-                    role="img"
-                  >
-                    <circle
-                      cx="8"
-                      cy="8"
-                      r="6"
-                      stroke="white"
-                      strokeWidth="2"
-                      strokeDasharray="28"
-                      strokeDashoffset="8"
-                    />
-                  </svg>
-                  Authenticating...
-                </>
-              ) : (
-                "ENTER STUDIO"
-              )}
+              ENTER STUDIO
             </button>
           </form>
         </div>
