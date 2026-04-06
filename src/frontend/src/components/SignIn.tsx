@@ -45,19 +45,19 @@ export default function SignIn({ onSignIn }: SignInProps) {
       return;
     }
 
-    setIsLoading(true);
-    setError("");
+    const upperPassword = password.toUpperCase();
 
-    const localCheck = password.toUpperCase() === "GRANITE";
-    if (!localCheck) {
-      setIsLoading(false);
+    if (upperPassword !== "GRANITE") {
       setError("Incorrect password. Access denied.");
       return;
     }
 
+    setIsLoading(true);
+    setError("");
+
     try {
       const actor = await createActorWithConfig();
-      const backendCheck = await actor.checkPassword(password);
+      const backendCheck = await actor.checkPassword(upperPassword);
       if (backendCheck) {
         onSignIn();
       } else {

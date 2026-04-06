@@ -65,7 +65,7 @@ actor {
   let drawingCounters = Map.empty<Principal, Nat>();
 
   // Password check
-  let password = "secret";
+  let password = "GRANITE";
   public query ({ caller }) func checkPassword(passwordAttempt : Text) : async Bool {
     passwordAttempt == password;
   };
